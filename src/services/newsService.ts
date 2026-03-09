@@ -1,0 +1,128 @@
+import { GoogleGenAI } from "@google/genai";
+
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+
+export interface NewsArticle {
+  id: string;
+  title: string;
+  summary: string;
+  category: string;
+  timestamp: string;
+  imageUrl: string;
+  content?: string;
+}
+
+export interface BoxingSchedule {
+  id: string;
+  fighterA: string;
+  fighterB: string;
+  date: string;
+  time: string;
+  venue: string;
+  title?: string;
+}
+
+export interface BoxingResult {
+  id: string;
+  fighterA: string;
+  fighterB: string;
+  winner: string;
+  method: string;
+  date: string;
+  details: string;
+}
+
+export async function fetchSportsNews(category: string = "general"): Promise<NewsArticle[]> {
+  try {
+    const prompt = `Generate 6 realistic and current sports news articles for the category: ${category}. 
+    IMPORTANT: Focus on Zambian sports (Chipolopolo, Zambian Super League, etc.) and Zambian Boxing (KK Boxing, Catherine Phiri, etc.).
+    Include boxing news if the category is general or boxing.
+    Return the data in a JSON array format with the following structure:
+    {
+      "id": "unique-id",
+      "title": "Headline",
+      "summary": "Short summary",
+      "category": "Sport name",
+      "timestamp": "e.g., 2 hours ago",
+      "imageUrl": "https://picsum.photos/seed/{keyword}/800/450"
+    }
+    Make the headlines sound professional like BBC Sports but with Zambian context.`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+      },
+    });
+
+    const text = response.text;
+    if (!text) return [];
+    return JSON.parse(text);
+  } catch (error) {
+    console.error("Error fetching news:", error);
+    return [];
+  }
+}
+
+export async function fetchBoxingSchedule(): Promise<BoxingSchedule[]> {
+  try {
+    const prompt = `Generate 4 upcoming Zambian boxing matches (KK Boxing promotions).
+    Return a JSON array:
+    {
+      "id": "id",
+      "fighterA": "Name",
+      "fighterB": "Name",
+      "date": "YYYY-MM-DD",
+      "time": "HH:MM",
+      "venue": "Venue in Zambia",
+      "title": "Optional Title Fight"
+    }`;
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: prompt,
+      config: { responseMimeType: "application/json" },
+    });
+    return JSON.parse(response.text || "[]");
+  } catch (error) {
+    return [];
+  }
+}
+
+export async function fetchBoxingResults(): Promise<BoxingResult[]> {
+  try {
+    const prompt = `Generate 4 recent Zambian boxing match results.
+    Return a JSON array:
+    {
+      "id": "id",
+      "fighterA": "Name",
+      "fighterB": "Name",
+      "winner": "Name",
+      "method": "KO/TKO/UD",
+      "date": "YYYY-MM-DD",
+      "details": "Brief fight summary"
+    }`;
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: prompt,
+      config: { responseMimeType: "application/json" },
+    });
+    return JSON.parse(response.text || "[]");
+  } catch (error) {
+    return [];
+  }
+}
+
+export async function fetchArticleContent(title: string): Promise<string> {
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: `Write a detailed sports news article based on this headline: "${title}". 
+      Format it in Markdown. Make it sound like a professional sports journalist.`,
+    });
+    return response.text || "Content unavailable.";
+  } catch (error) {
+    console.error("Error fetching article content:", error);
+    return "Failed to load article content.";
+  }
+}
